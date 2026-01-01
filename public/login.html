@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Services | Login</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #00d4ff; /* Fallback */
+            background: linear-gradient(135deg, #00d4ff 0%, #007bff 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .login-card {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            width: 320px;
+            text-align: center;
+        }
+        h2 { color: #333; margin-bottom: 20px; }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        input:focus { border-color: #007bff; }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover { background-color: #0056b3; }
+        .link { margin-top: 15px; font-size: 14px; color: #666; }
+        .link a { color: #007bff; text-decoration: none; }
+        .error { color: red; font-size: 13px; display: none; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <h2>Welcome Back</h2>
+        <p style="color:#777; font-size: 14px;">Login to access City Services</p>
+        
+        <input type="email" id="email" placeholder="admin@test.com" required>
+        <input type="password" id="password" placeholder="Password" required>
+        
+        <button onclick="handleLogin()">Login</button>
+        <p id="error-msg" class="error"></p>
+
+        <div class="link">
+            New here? <a href="register.html">Create an Account</a>
+        </div>
+    </div>
+
+    <script>
+        async function handleLogin() {
+            // 1. GET VALUES
+            const email = document.getElementById('email').value; // MATCHING ID
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            // 2. SEND TO SERVER AS 'email' (Not username!)
+            try {
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: password }) 
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    // Login Success!
+                    // Save user info to browser
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    // Redirect to Chat Page
+                    window.location.href = 'chat.html'; 
+                } else {
+                    // Login Failed
+                    errorMsg.innerText = data.message;
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                console.error(err);
+                errorMsg.innerText = "Connection Error";
+                errorMsg.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

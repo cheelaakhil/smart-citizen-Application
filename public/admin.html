@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | SMART Citizen</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f7f6; }
+        .container { max-width: 900px; margin: 40px auto; padding: 20px; }
+        .admin-header { background: #2c3e50; color: white; padding: 20px; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; align-items: center; }
+        .panel { background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 1rem; box-sizing: border-box; }
+        .btn-add { background: #27ae60; color: white; border: none; padding: 12px; font-size: 1rem; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn-add:hover { background: #219150; }
+        .data-table { width: 100%; margin-top: 30px; border-collapse: collapse; }
+        .data-table th, .data-table td { padding: 12px; border-bottom: 1px solid #ddd; text-align: left; }
+        .data-table th { background: #f8f9fa; color: #333; }
+        .tag-badge { background: #e0f7fa; color: #006064; padding: 3px 8px; border-radius: 10px; font-size: 0.8rem; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="admin-header">
+            <h3><i class="fas fa-user-shield"></i> City Control Room</h3>
+            <a href="index.html" style="color:white; text-decoration:none;"><i class="fas fa-home"></i> Back to Home</a>
+        </div>
+        
+        <div class="panel">
+            <h2 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px;">Add New Service</h2>
+            <form id="addServiceForm">
+                <div class="form-group">
+                    <label>Service Name</label>
+                    <input type="text" id="sName" placeholder="e.g. New Govt Clinic" required>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div class="form-group">
+                        <label>Latitude</label>
+                        <input type="number" step="any" id="sLat" placeholder="17.xxx" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Longitude</label>
+                        <input type="number" step="any" id="sLon" placeholder="78.xxx" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="sCategory">
+                        <option value="hospital, doctor, emergency">Hospital</option>
+                        <option value="shopping, mall, mart">Shopping Mall</option>
+                        <option value="gym, fitness">Gym / Fitness</option>
+                        <option value="park, garden">Park</option>
+                        <option value="pharmacy, medicine">Pharmacy</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-add"><i class="fas fa-plus-circle"></i> Add to Live Map</button>
+            </form>
+
+            <h3 style="margin-top: 40px;">Live Database</h3>
+            <table class="data-table">
+                <thead><tr><th>Name</th><th>Location</th><th>Category</th></tr></thead>
+                <tbody id="servicesList"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function loadServices() {
+            const res = await fetch('/services');
+            const data = await res.json();
+            const tbody = document.getElementById('servicesList');
+            tbody.innerHTML = '';
+            data.forEach(s => {
+                tbody.innerHTML += `<tr><td><b>${s.name}</b></td><td>${s.lat}, ${s.lon}</td><td><span class="tag-badge">${s.tags[0]}</span></td></tr>`;
+            });
+        }
+        loadServices();
+
+        document.getElementById('addServiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newService = {
+                name: document.getElementById('sName').value,
+                lat: parseFloat(document.getElementById('sLat').value),
+                lon: parseFloat(document.getElementById('sLon').value),
+                tags: document.getElementById('sCategory').value.split(', '),
+                rating: 5.0, type: "public", location: "New Zone"
+            };
+            const res = await fetch('/add-service', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newService) });
+            if((await res.json()).success) {
+                alert("✅ Added!");
+                loadServices();
+                document.getElementById('addServiceForm').reset();
+            }
+        });
+    </script>
+</body>
+</html>

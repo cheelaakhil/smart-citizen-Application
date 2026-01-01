@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | SMART Citizen</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Exact same styles as your Login page */
+        body {
+            background: linear-gradient(135deg, #007bff 0%, #00d4ff 100%);
+            display: flex; align-items: center; justify-content: center; height: 100vh;
+            font-family: 'Segoe UI', sans-serif; margin: 0;
+        }
+        .auth-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            width: 350px; text-align: center;
+        }
+        .auth-header { margin-bottom: 30px; }
+        .auth-header i { font-size: 3rem; color: #28a745; margin-bottom: 10px; } /* Green icon for register */
+        .auth-header h2 { margin: 0; color: #333; }
+        
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #555; font-size: 0.9rem; }
+        .input-group input {
+            width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px;
+            font-size: 1rem; transition: 0.3s; box-sizing: border-box;
+        }
+        .input-group input:focus { border-color: #28a745; outline: none; } /* Green focus for register */
+        
+        .btn-auth {
+            width: 100%; padding: 12px; background: #28a745; color: white; border: none;
+            border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: 0.3s;
+        }
+        .btn-auth:hover { background: #218838; transform: translateY(-2px); }
+        
+        .toggle-text { margin-top: 20px; font-size: 0.9rem; color: #666; }
+        .toggle-text a { color: #007bff; text-decoration: none; font-weight: bold; cursor: pointer; }
+        .error-msg { color: #dc3545; font-size: 0.85rem; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <i class="fas fa-user-plus"></i>
+            <h2>Create Account</h2>
+            <p style="color:#777; font-size:0.9rem;">Join the Smart City Network</p>
+        </div>
+
+        <div id="errorBox" class="error-msg"></div>
+
+        <form id="registerForm">
+            <div class="input-group">
+                <label>Full Name</label>
+                <input type="text" id="regName" placeholder="John Doe" required>
+            </div>
+            <div class="input-group">
+                <label>Email ID</label>
+                <input type="email" id="regEmail" placeholder="user@example.com" required>
+            </div>
+            <div class="input-group">
+                <label>Create Password</label>
+                <input type="password" id="regPass" placeholder="••••••" required>
+            </div>
+            
+            <button type="submit" class="btn-auth">Sign Up</button>
+            
+            <div class="toggle-text">
+                Already have an account? <a href="login.html">Login Here</a>
+            </div>
+        </form>
+
+        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 15px;">
+            <a href="index.html" style="color:#999; text-decoration:none; font-size:0.85rem;">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        const registerForm = document.getElementById('registerForm');
+        const errorBox = document.getElementById('errorBox');
+
+        function showError(msg) {
+            errorBox.innerText = msg;
+            errorBox.style.display = 'block';
+        }
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Get values
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPass').value;
+
+            try {
+                // Send to Server
+                const res = await fetch('/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await res.json();
+                
+                if(data.success) {
+                    alert("Registration Successful! Redirecting to Login...");
+                    window.location.href = 'login.html';
+                } else {
+                    showError(data.message);
+                }
+            } catch (err) {
+                showError("Server Connection Failed.");
+            }
+        });
+    </script>
+</body>
+</html>
