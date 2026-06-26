@@ -10,7 +10,10 @@ const path = require('path');
 const https = require('https');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto'); // Built-in Node.js — no install needed
+const NodeCache = require('node-cache');
+const rateLimit = require('express-rate-limit');
 
+const myCache = new NodeCache({ stdTTL: 300 }); // 5 minutes TTL
 // ✅ FIX: Custom HTTPS agent — helps with SSL/TLS issues on Windows
 const httpsAgent = new https.Agent({ keepAlive: true });
 const customFetch = (url, options = {}) => fetch(url, { ...options, agent: httpsAgent });
@@ -20,6 +23,15 @@ const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Rate limiter for general security
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes.' }
+});
+app.use(limiter);
+
 
 // ==========================================
 // CORS — required for browser requests
@@ -96,6 +108,14 @@ async function fetchNearbyPlaces(lat, lon, categoryKey) {
         return [];
     }
 
+    // Round coordinates to group nearby requests within ~100m together
+    const cacheKey = `${categoryKey}_${lat.toFixed(3)}_${lon.toFixed(3)}`;
+    const cachedData = myCache.get(cacheKey);
+    if (cachedData) {
+        console.log(`⚡ Serving "${categoryKey}" from Cache!`);
+        return cachedData;
+    }
+
     let finalResults = [];
 
     // --- ATTEMPT 1: LIVE SATELLITE (OSM) ---
@@ -151,7 +171,7 @@ async function fetchNearbyPlaces(lat, lon, categoryKey) {
     }
 
     // Attach distance + rating, then sort by closest
-    return finalResults
+    const processedResults = finalResults
         .filter(p => p.lat && p.lon) // ✅ FIX: Skip entries with missing coords
         .map(p => ({
             ...p,
@@ -159,6 +179,9 @@ async function fetchNearbyPlaces(lat, lon, categoryKey) {
             rating: p.rating ?? (Math.random() * (4.9 - 3.8) + 3.8).toFixed(1)
         }))
         .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+
+    myCache.set(cacheKey, processedResults);
+    return processedResults;
 }
 
 function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
@@ -201,10 +224,17 @@ async function analyzeIntent(userMessage) {
 // 4. AUTH ROUTES
 // ==========================================
 
+function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 app.post('/register', async (req, res) => {
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
         return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
     }
 
     const { data: existing } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
@@ -224,6 +254,9 @@ app.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+    if (!isValidEmail(email)) {
+        return res.status(400).json({ success: false, message: 'Please provide a valid email address.' });
     }
 
     const { data, error } = await supabase
