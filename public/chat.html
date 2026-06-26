@@ -65,6 +65,17 @@
 
         #map { flex: 1; height: 100%; }
         @media (max-width: 768px) { body { flex-direction: column-reverse; } .sidebar { width: 100%; height: 60%; } }
+        
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal { background: white; width: 90%; max-width: 400px; border-radius: 16px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; font-size: 1.2rem; font-weight: 700; color: #1e293b; }
+        .btn-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
+        .modal label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+        .modal select, .modal textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 0.9rem; outline: none; }
+        .modal textarea { resize: none; height: 80px; }
+        .btn-submit-report { padding: 12px; background: var(--primary); color: white; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .btn-submit-report:hover { background: #1d4ed8; }
     </style>
 </head>
 <body>
@@ -99,6 +110,7 @@
             <div class="svc-btn" onclick="sendQuick('Metro Station')"><i class="fas fa-subway" style="color:#8b5cf6"></i> Metro</div>
             <div class="svc-btn" onclick="sendQuick('Bus Station')"><i class="fas fa-bus" style="color:#f59e0b"></i> Bus Stop</div>
             <div class="svc-btn" onclick="sendQuick('Public Toilet')"><i class="fas fa-restroom" style="color:#64748b"></i> Restroom</div>
+            <div class="svc-btn" style="background:#fff1f2; border-color:#fda4af;" onclick="openReportModal()"><i class="fas fa-exclamation-triangle" style="color:#e11d48"></i> Report</div>
         </div>
 
         <div class="chat-container" id="chat-box">
@@ -113,6 +125,30 @@
     </div>
 
     <div id="map"></div>
+
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal">
+            <div class="modal-header">
+                <span><i class="fas fa-exclamation-triangle" style="color:#e11d48"></i> Report Issue</span>
+                <button class="btn-close" onclick="closeReportModal()">&times;</button>
+            </div>
+            <div>
+                <label>Issue Type</label>
+                <select id="issueType">
+                    <option value="Road Damage">Road Damage</option>
+                    <option value="Broken Streetlight">Broken Streetlight</option>
+                    <option value="Water Leak">Water Leak</option>
+                    <option value="Garbage Dump">Garbage Dump</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div>
+                <label>Description</label>
+                <textarea id="issueDesc" placeholder="Briefly describe the issue (e.g., Pothole in middle lane)..."></textarea>
+            </div>
+            <button class="btn-submit-report" onclick="submitReport()">Submit Report</button>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
@@ -239,6 +275,53 @@
                 
             window.open(waUrl, '_blank');
             sendQuick("Emergency SOS");
+        }
+
+        function openReportModal() {
+            if(!userLocation) return alert("Waiting for GPS...");
+            document.getElementById('reportModal').style.display = 'flex';
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
+            document.getElementById('issueDesc').value = '';
+        }
+
+        async function submitReport() {
+            const type = document.getElementById('issueType').value;
+            const desc = document.getElementById('issueDesc').value;
+            if(!desc) return alert("Please provide a description of the issue.");
+            
+            const btn = document.querySelector('.btn-submit-report');
+            btn.innerText = 'Submitting...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        issueType: type, 
+                        description: desc, 
+                        location: userLocation, 
+                        user: user ? user.name : 'Anonymous' 
+                    })
+                });
+                
+                const data = await res.json();
+                if(data.success) {
+                    alert("Report submitted successfully! The government has been notified.");
+                    closeReportModal();
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Server error. Could not submit report.");
+            }
+            
+            btn.innerText = 'Submit Report';
+            btn.disabled = false;
         }
 
         document.getElementById('userInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
