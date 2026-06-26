@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART Citizen | Future City OS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { 
+            --bg-dark: #0B1120; /* Deep Navy */
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6; 
+            --accent: #8b5cf6; 
+            --danger: #ef4444;
+        }
+        
+        body { margin: 0; padding: 0; font-family: 'Outfit', sans-serif; background-color: var(--bg-dark); color: var(--text-main); overflow-x: hidden; }
+
+        /* 🌌 BACKGROUND EFFECTS */
+        .glow { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, rgba(0,0,0,0) 70%); top: -200px; left: 50%; transform: translateX(-50%); z-index: -1; pointer-events: none; }
+        .grid-bg { position: fixed; width: 100%; height: 100%; background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 50px 50px; z-index: -2; opacity: 0.5; }
+
+        /* 🔵 NAVBAR */
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; }
+        .brand { font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 10px; color: #3b82f6; }
+        .brand i { font-size: 1.8rem; }
+        
+        .nav-links { display: flex; gap: 20px; align-items: center; }
+        .user-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: 0.3s; font-size: 0.9rem; }
+        .user-btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-logout { color: #ef4444; text-decoration: none; font-weight: 600; font-size: 0.9rem; margin-left: 10px; cursor: pointer; }
+
+        /* 🚀 HERO SECTION */
+        .hero { text-align: center; padding: 60px 20px; max-width: 900px; margin: 0 auto; }
+        .subtitle { color: var(--accent); font-weight: 700; letter-spacing: 2px; font-size: 0.9rem; text-transform: uppercase; margin-bottom: 10px; }
+        
+        h1 { font-size: 5rem; line-height: 1; margin: 0; font-weight: 900; background: linear-gradient(180deg, #fff, #94a3b8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: var(--text-muted); font-size: 1.2rem; margin-top: 20px; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+
+        .cta-btn { background: linear-gradient(90deg, #6366f1, #3b82f6); color: white; padding: 15px 40px; border: none; border-radius: 50px; font-size: 1.1rem; font-weight: 700; margin-top: 30px; cursor: pointer; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4); transition: 0.3s; display: inline-flex; align-items: center; gap: 10px; }
+        .cta-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(59, 130, 246, 0.6); }
+
+        /* 📊 STATS ROW */
+        .stats-row { display: flex; justify-content: center; gap: 60px; margin-top: 60px; flex-wrap: wrap; }
+        .stat-item { text-align: center; }
+        .stat-val { font-size: 2.5rem; font-weight: 800; display: block; }
+        .stat-label { color: var(--text-muted); font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase; margin-top: 5px; }
+        .green-txt { color: #10b981; }
+
+        /* 📱 MODULES GRID (Initially Hidden or Scrolled to) */
+        .dashboard-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; max-width: 1000px; margin: 50px auto; padding: 0 20px; 
+            opacity: 0; transform: translateY(20px); transition: 0.5s ease;
+        }
+        .dashboard-grid.visible { opacity: 1; transform: translateY(0); }
+
+        .card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; }
+        .card:hover { border-color: var(--primary); background: rgba(30, 41, 59, 0.9); transform: translateY(-5px); }
+        .card i { font-size: 2.5rem; margin-bottom: 20px; display: block; }
+        .card h3 { margin: 0 0 10px 0; font-size: 1.3rem; }
+        .card p { color: var(--text-muted); margin: 0; font-size: 0.9rem; line-height: 1.5; }
+
+        /* Specific Colors */
+        .c-ai i { color: #3b82f6; }
+        .c-report i { color: #f59e0b; }
+        .c-sos i { color: #ef4444; }
+
+        /* 🚨 ALERT TICKER */
+        .alert-bar { position: fixed; bottom: 0; width: 100%; background: #0f172a; border-top: 1px solid #ef4444; padding: 10px 0; display: flex; align-items: center; z-index: 100; }
+        .alert-label { background: #ef4444; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 0.8rem; margin-left: 20px; margin-right: 10px; }
+        .marquee { white-space: nowrap; overflow: hidden; color: #cbd5e1; font-size: 0.9rem; width: 100%; }
+        .marquee span { display: inline-block; padding-left: 100%; animation: scroll 20s linear infinite; }
+        @keyframes scroll { 0% { transform: translate(0, 0); } 100% { transform: translate(-100%, 0); } }
+
+        /* REPORT MODAL */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal { background: #1e293b; padding: 30px; border-radius: 16px; width: 90%; max-width: 450px; border: 1px solid rgba(255,255,255,0.1); color: white; }
+        .form-input { width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 8px; margin-top: 5px; margin-bottom: 15px; outline: none; }
+        .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; }
+
+    </style>
+</head>
+<body>
+
+    <div class="grid-bg"></div>
+    <div class="glow"></div>
+
+    <div class="navbar">
+        <div class="brand"><i class="fas fa-building"></i> SMART Citizen</div>
+        <div class="nav-links">
+            <button class="user-btn"><i class="fas fa-user-circle"></i> <span id="username">User</span></button>
+            <span class="btn-logout" onclick="logout()">Logout</span>
+        </div>
+    </div>
+
+    <div class="hero">
+        <div class="subtitle">Next-Gen Urban OS</div>
+        <h1>THE CITY IS<br>LISTENING.</h1>
+        <p>A unified platform connecting Citizens, Emergency Services, and Government Infrastructure in real-time. Faster than a call. Smarter than a map.</p>
+        
+        <button class="cta-btn" onclick="revealDashboard()">
+            <i class="fas fa-rocket"></i> Launch Dashboard
+        </button>
+
+        <div class="stats-row">
+            <div class="stat-item">
+                <span class="stat-val">108</span>
+                <span class="stat-label">Active Ambulances</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val" id="weather-val">--°C</span>
+                <span class="stat-label">Live Temperature</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val green-txt">42</span>
+                <span class="stat-label">Air Quality (Good)</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid" id="main-grid">
+        <div class="card c-ai" onclick="window.location.href='chat.html'">
+            <i class="fas fa-robot"></i>
+            <h3>AI City Assistant</h3>
+            <p>Voice-enabled search for hospitals, police stations, and ATMs.</p>
+        </div>
+
+        <div class="card c-report" onclick="openReportModal()">
+            <i class="fas fa-camera"></i>
+            <h3>Report Issue</h3>
+            <p>Instantly report potholes or garbage with geo-tagging.</p>
+        </div>
+
+        <div class="card c-sos" onclick="triggerSOS()">
+            <i class="fas fa-ambulance"></i>
+            <h3>Emergency SOS</h3>
+            <p>One-touch alert to nearest patrol units.</p>
+        </div>
+    </div>
+
+    <div class="alert-bar">
+        <span class="alert-label">ALERT</span>
+        <div class="marquee">
+            <span>⚠️ Heavy traffic reported at Miyapur Crossroads • 🌧️ Light rain expected in Dundigal area • 🚇 Metro Blue Line running on schedule</span>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="reportModal">
+        <div class="modal">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h2 style="margin:0;">Report Incident</h2>
+                <button onclick="closeReportModal()" style="background:none;border:none;color:white;font-size:1.5rem;cursor:pointer;">&times;</button>
+            </div>
+            <label>Issue Type</label>
+            <select id="issueType" class="form-input">
+                <option>🚧 Pothole / Road Damage</option>
+                <option>🗑️ Garbage Dump</option>
+                <option>💡 Streetlight Broken</option>
+            </select>
+            <label>Location Description</label>
+            <textarea id="issueDesc" class="form-input" rows="3" placeholder="e.g., Near the main bus stop..."></textarea>
+            <button class="btn-submit" onclick="submitReport()">Submit Report</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <script>
+        // 1. Auth Check
+        const user = JSON.parse(localStorage.getItem('user'));
+        if (!user) window.location.href = 'index.html';
+        document.getElementById('username').innerText = user.name.split(' ')[0];
+
+        function logout() { localStorage.removeItem('user'); window.location.href = 'index.html'; }
+
+        // 2. Reveal Dashboard Animation
+        function revealDashboard() {
+            const grid = document.getElementById('main-grid');
+            grid.classList.add('visible');
+            grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 3. Live Weather Fetch
+        async function fetchWeather() {
+            try {
+                const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=17.58&longitude=78.43&current_weather=true');
+                const data = await res.json();
+                document.getElementById('weather-val').innerText = Math.round(data.current_weather.temperature) + "°C";
+            } catch (e) { console.log("Weather error"); }
+        }
+        fetchWeather();
+
+        // 4. Report Logic
+        const modal = document.getElementById('reportModal');
+        function openReportModal() { modal.style.display = 'flex'; }
+        function closeReportModal() { modal.style.display = 'none'; }
+
+        async function submitReport() {
+            closeReportModal();
+            Toastify({
+                text: "✅ Ticket Raised Successfully!",
+                duration: 3000, gravity: "top", position: "center", 
+                style: { background: "#10b981", borderRadius: "10px" }
+            }).showToast();
+
+            const type = document.getElementById('issueType').value;
+            const desc = document.getElementById('issueDesc').value;
+            
+            await fetch('/report-issue', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ userEmail: user.email, issueType: type, description: desc, location: {lat: 17.58, lon: 78.43} })
+            });
+        }
+
+        // 5. SOS Logic
+        function triggerSOS() {
+            window.open('https://wa.me/?text=🚨 EMERGENCY SOS! Location: 17.58, 78.43', '_blank');
+        }
+    </script>
+</body>
+</html>

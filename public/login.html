@@ -3,106 +3,117 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>City Services | Login</title>
+    <title>Login | Secure Access</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background: #00d4ff; /* Fallback */
-            background: linear-gradient(135deg, #00d4ff 0%, #007bff 100%);
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0;
+        body { margin: 0; padding: 0; font-family: 'Outfit', sans-serif; background: #0f172a; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        
+        /* Animated Orbs */
+        .orb { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.6; animation: float 10s infinite alternate; }
+        .orb-1 { width: 300px; height: 300px; background: #3b82f6; top: -50px; left: -50px; }
+        .orb-2 { width: 200px; height: 200px; background: #8b5cf6; bottom: -50px; right: -50px; animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(30px, 50px); } }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px;
+            padding: 50px; width: 400px; text-align: center; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); z-index: 10;
         }
-        .login-card {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            width: 320px;
-            text-align: center;
-        }
-        h2 { color: #333; margin-bottom: 20px; }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-sizing: border-box;
-            outline: none;
-        }
-        input:focus { border-color: #007bff; }
-        button {
-            width: 100%;
-            padding: 12px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            margin-top: 10px;
-        }
-        button:hover { background-color: #0056b3; }
-        .link { margin-top: 15px; font-size: 14px; color: #666; }
-        .link a { color: #007bff; text-decoration: none; }
-        .error { color: red; font-size: 13px; display: none; margin-top: 10px; }
+        
+        h2 { color: white; font-size: 2rem; margin-bottom: 10px; }
+        p { color: #94a3b8; margin-bottom: 30px; font-size: 0.9rem; }
+
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { color: #cbd5e1; font-size: 0.85rem; display: block; margin-bottom: 8px; margin-left: 5px; }
+        .inp { width: 100%; padding: 12px 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; color: white; outline: none; transition: 0.3s; font-size: 1rem; }
+        .inp:focus { border-color: #3b82f6; background: rgba(0,0,0,0.5); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+
+        .btn-login { width: 100%; padding: 14px; background: linear-gradient(90deg, #3b82f6, #6366f1); border: none; border-radius: 12px; color: white; font-weight: 700; font-size: 1rem; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-login:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3); }
+
+        .divider { margin: 25px 0; color: #475569; font-size: 0.8rem; display: flex; align-items: center; gap: 10px; }
+        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #334155; }
+
+        .social-login { display: flex; gap: 15px; justify-content: center; }
+        .social-btn { width: 50px; height: 50px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; transition: 0.3s; }
+        .social-btn:hover { background: rgba(255,255,255,0.1); }
+
+        .footer-link { margin-top: 25px; display: block; color: #94a3b8; font-size: 0.9rem; text-decoration: none; }
+        .footer-link span { color: #3b82f6; font-weight: 600; }
+        .footer-link:hover { color: white; }
     </style>
 </head>
 <body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
 
-    <div class="login-card">
+    <div class="glass-panel">
         <h2>Welcome Back</h2>
-        <p style="color:#777; font-size: 14px;">Login to access City Services</p>
-        
-        <input type="email" id="email" placeholder="admin@test.com" required>
-        <input type="password" id="password" placeholder="Password" required>
-        
-        <button onclick="handleLogin()">Login</button>
-        <p id="error-msg" class="error"></p>
+        <p>Access your city dashboard securely.</p>
 
-        <div class="link">
-            New here? <a href="register.html">Create an Account</a>
+        <div class="input-group">
+            <label>Email Address</label>
+            <input type="email" class="inp" id="email" placeholder="citizen@smartcity.com">
         </div>
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" class="inp" id="password" placeholder="••••••••">
+        </div>
+
+        <button class="btn-login" onclick="handleLogin()">Sign In</button>
+
+        <div class="divider">OR CONTINUE WITH</div>
+
+        <div class="social-login">
+            <div class="social-btn"><i class="fab fa-google"></i></div>
+            <div class="social-btn"><i class="fab fa-apple"></i></div>
+            <div class="social-btn"><i class="fas fa-fingerprint"></i></div>
+        </div>
+
+        <a href="register.html" class="footer-link">Don't have an account? <span>Register</span></a>
     </div>
 
     <script>
+        // ✅ UPDATED LOGIN LOGIC
         async function handleLogin() {
-            // 1. GET VALUES
-            const email = document.getElementById('email').value; // MATCHING ID
+            const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-            const errorMsg = document.getElementById('error-msg');
+            
+            if(!email || !password) {
+                alert("Please fill in all fields");
+                return;
+            }
 
-            // 2. SEND TO SERVER AS 'email' (Not username!)
             try {
                 const res = await fetch('/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, password: password }) 
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email, password })
                 });
-
                 const data = await res.json();
-
-                if (data.success) {
-                    // Login Success!
-                    // Save user info to browser
+                
+                if(data.success) {
+                    // Save User info
                     localStorage.setItem('user', JSON.stringify(data.user));
-                    // Redirect to Chat Page
-                    window.location.href = 'chat.html'; 
+                    
+                    // 👇 THIS IS THE REDIRECT TO HOME PAGE 👇
+                    window.location.href = 'home.html';
                 } else {
-                    // Login Failed
-                    errorMsg.innerText = data.message;
-                    errorMsg.style.display = 'block';
+                    alert("Invalid Credentials! Try: akhilcheela4@gmail.com / 123");
                 }
-            } catch (err) {
-                console.error(err);
-                errorMsg.innerText = "Connection Error";
-                errorMsg.style.display = 'block';
+            } catch (error) {
+                console.error("Login Error:", error);
+                alert("Server Error. Make sure node server.js is running.");
             }
         }
+
+        // Allow pressing "Enter" key to login
+        document.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
     </script>
 </body>
 </html>

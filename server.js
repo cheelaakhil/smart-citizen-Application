@@ -1,7 +1,19 @@
 require('dotenv').config();
+
+// ✅ FIX: Force IPv4 DNS resolution — prevents "fetch failed / EAI_AGAIN" on Windows
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const path = require('path');
+const https = require('https');
+const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto'); // Built-in Node.js — no install needed
+
+// ✅ FIX: Custom HTTPS agent — helps with SSL/TLS issues on Windows
+const httpsAgent = new https.Agent({ keepAlive: true });
+const customFetch = (url, options = {}) => fetch(url, { ...options, agent: httpsAgent });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,127 +21,264 @@ const PORT = process.env.PORT || 3000;
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// --- 1. DATABASE ---
-let services = [
-    // HOSPITALS
-    { id: "h1", name: "Malla Reddy Narayana Hospital", type: "Hospital", tags: ["hospital", "emergency"], rating: 4.2, lat: 17.519, lon: 78.465, location: "Suraram" },
-    { id: "h2", name: "Usha Mullapudi Cardiac Center", type: "Hospital", tags: ["hospital", "heart"], rating: 4.6, lat: 17.505, lon: 78.435, location: "Jeedimetla" },
-    
-    // PHARMACIES
-    { id: "p1", name: "Apollo Pharmacy", type: "Pharmacy", tags: ["pharmacy", "medicine"], rating: 4.2, lat: 17.520, lon: 78.470, location: "Suraram" },
-    { id: "p2", name: "MedPlus Dundigal", type: "Pharmacy", tags: ["pharmacy", "medicine"], rating: 4.5, lat: 17.584, lon: 78.436, location: "Dundigal" },
-
-    // SHOPPING
-    { id: "s1", name: "Nexus Hyderabad Mall", type: "Mall", tags: ["shopping", "mall", "cinema", "nexus"], rating: 4.6, lat: 17.484, lon: 78.399, location: "Kukatpally" },
-    { id: "s2", name: "Vishal Mega Mart", type: "Shopping", tags: ["shopping", "mart", "clothes", "grocery", "vishal"], rating: 4.1, lat: 17.590, lon: 78.442, location: "Gandimaisamma" },
-    { id: "s3", name: "D-Mart Kompally", type: "Shopping", tags: ["shopping", "grocery", "mart"], rating: 4.5, lat: 17.545, lon: 78.488, location: "Kompally" },
-
-    // GYMS
-    { id: "g1", name: "Iron Pumping Gym", type: "Gym", tags: ["gym", "fitness"], rating: 4.7, lat: 17.585, lon: 78.435, location: "Dundigal" }
-];
-
-let users = [{ id: "u1", name: "Akhil", email: "akhilcheela4@gmail.com", password: "123" }];
-
-// --- 2. LOGIC ---
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
-    const R = 6371; 
-    const dLat = (lat2 - lat1) * (Math.PI / 180);
-    const dLon = (lon2 - lon1) * (Math.PI / 180);
-    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*(Math.PI/180))*Math.cos(lat2*(Math.PI/180))*Math.sin(dLon/2)*Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
-
-function getRecommendations(params) {
-    let candidates = services;
-
-    // 1. Keyword Search
-    if (params.keywords && params.keywords.length > 0) {
-        const lowerKeywords = params.keywords.map(k => k.toLowerCase());
-        candidates = candidates.filter(service => 
-            service.tags.some(tag => lowerKeywords.some(k => tag.includes(k) || k.includes(tag)))
-        );
-    } 
-    // 2. Name Search
-    else if (params.nameSearch) {
-        const query = params.nameSearch.toLowerCase();
-        candidates = candidates.filter(service => 
-            service.name.toLowerCase().includes(query) || 
-            service.location.toLowerCase().includes(query)
-        );
-    }
-
-    return candidates.map(service => {
-        let score = service.rating * 10;
-        let dist = null;
-        if (params.userLocation) {
-            dist = calculateDistance(params.userLocation.lat, params.userLocation.lon, service.lat, service.lon);
-            if (dist !== null) {
-                if (dist < 5) score += 30;  
-                else score -= (dist * 1);      
-            }
-        }
-        return { ...service, score, distance: (dist !== null) ? dist.toFixed(1) : "?" };
-    }).sort((a, b) => b.score - a.score);
-}
-
-async function analyzeIntent(userMessage) {
-    const lowerMsg = userMessage.toLowerCase();
-    
-    if (lowerMsg.includes("accident") || lowerMsg.includes("sos") || lowerMsg.includes("help")) {
-        return { action: 'EMERGENCY', response: "🚨 **CRITICAL**: Showing emergency centers!" };
-    }
-
-    let keywords = [];
-    if (lowerMsg.includes("pharmacy")) keywords.push("pharmacy");
-    if (lowerMsg.includes("hospital")) keywords.push("hospital");
-    if (lowerMsg.includes("gym")) keywords.push("gym");
-    
-    // THIS FIXES "MALLS" BUTTON ISSUE
-    if (lowerMsg.includes("shop") || lowerMsg.includes("mall") || lowerMsg.includes("mart")) {
-        keywords.push("shopping", "mall", "mart");
-    }
-
-    if (keywords.length > 0) {
-        return { action: 'SEARCH', params: { keywords } };
-    }
-    
-    // FALLBACK: Name Search
-    return { action: 'SEARCH', params: { nameSearch: userMessage } };
-}
-
-// --- 3. ROUTES ---
-app.post('/login', (req, res) => {
-    const user = users.find(u => u.email === req.body.email && u.password === req.body.password);
-    if (user) res.json({ success: true, user: { name: user.name } });
-    else res.json({ success: false });
+// ==========================================
+// CORS — required for browser requests
+// ==========================================
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    next();
 });
 
+// ==========================================
+// 1. INITIALIZE SUPABASE CLIENT
+//    ✅ FIX: Credentials now read from .env
+// ==========================================
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('❌ FATAL: SUPABASE_URL and SUPABASE_KEY must be set in your .env file.');
+    process.exit(1); // Stop server immediately if credentials are missing
+}
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+    auth: { persistSession: false },
+    global: { fetch: customFetch } // ✅ FIX: Use agent-backed fetch for Windows compatibility
+});
+
+async function testConnection() {
+    console.log('🔌 Connecting to Supabase...');
+    try {
+        const { error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+        if (error) throw error;
+        console.log('✅ Connected to Supabase successfully');
+    } catch (err) {
+        console.error('❌ Supabase Connection Failed:', err.message);
+        console.error('   Check SUPABASE_URL and SUPABASE_KEY in your .env file');
+    }
+}
+testConnection();
+
+// ==========================================
+// PASSWORD HASHING HELPER
+// ✅ FIX: Passwords are no longer stored in plaintext
+// ==========================================
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+// ==========================================
+// 2. HYBRID FETCH: Satellite + Supabase SDK
+// ==========================================
+const CATEGORY_MAP = {
+    'hospital':    'amenity=hospital',
+    'pharmacy':    'amenity=pharmacy',
+    'police':      'amenity=police',
+    'rto':         'government=transportation',
+    'govt':        'office=government',
+    'bank':        'amenity=bank',
+    'atm':         'amenity=atm',
+    'metro':       'railway=station',
+    'bus_station': 'amenity=bus_station',
+    'toilet':      'amenity=toilets',
+    'ev':          'amenity=charging_station',
+    'meeseva':     'office=government',
+    'blood':       'amenity=blood_bank'
+};
+
+async function fetchNearbyPlaces(lat, lon, categoryKey) {
+    // ✅ FIX: Guard against undefined categoryKey
+    if (!categoryKey || !CATEGORY_MAP[categoryKey]) {
+        console.warn(`⚠️ Unknown or missing category key: "${categoryKey}". Skipping OSM fetch.`);
+        return [];
+    }
+
+    let finalResults = [];
+
+    // --- ATTEMPT 1: LIVE SATELLITE (OSM) ---
+    const osmTag = CATEGORY_MAP[categoryKey];
+    const query = `[out:json];(node[${osmTag}](around:5000,${lat},${lon});way[${osmTag}](around:5000,${lat},${lon}););out center 10;`;
+    const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+    try {
+        console.log(`🌍 OSM: Fetching "${categoryKey}"...`);
+        const response = await customFetch(url);
+        if (!response.ok) throw new Error(`OSM returned HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (data.elements && data.elements.length > 0) {
+            finalResults = data.elements.map(place => ({
+                id: place.id.toString(),
+                name: place.tags?.name || `${categoryKey.toUpperCase()} (Live)`,
+                type: categoryKey,
+                lat: place.lat ?? place.center?.lat,
+                lon: place.lon ?? place.center?.lon,
+                link: place.tags?.website || `https://www.google.com/search?q=${encodeURIComponent(categoryKey + ' near me')}`,
+                source: 'Live Satellite'
+            }));
+            console.log(`✅ OSM: Found ${finalResults.length} results.`);
+        } else {
+            console.log(`⚠️ OSM: No results for "${categoryKey}". Trying Supabase...`);
+        }
+    } catch (error) {
+        console.warn(`⚠️ OSM fetch failed: ${error.message}. Switching to Supabase.`);
+    }
+
+    // --- ATTEMPT 2: SUPABASE SDK BACKUP ---
+    if (finalResults.length === 0) {
+        console.log(`📂 Supabase: Querying for "${categoryKey}"...`);
+        const { data, error } = await supabase
+            .from('services')
+            .select('*')
+            .or(`tags.ilike.%${categoryKey}%,type.ilike.%${categoryKey}%`);
+
+        if (error) {
+            console.error('❌ Supabase query error:', error.message);
+        } else if (data && data.length > 0) {
+            console.log(`✅ Supabase: Found ${data.length} records.`);
+            finalResults = data.map(row => ({
+                ...row,
+                lat: parseFloat(row.lat),
+                lon: parseFloat(row.lon),
+                source: 'Supabase Cloud'
+            }));
+        } else {
+            console.log(`⚠️ Supabase: No records found for "${categoryKey}".`);
+        }
+    }
+
+    // Attach distance + rating, then sort by closest
+    return finalResults
+        .filter(p => p.lat && p.lon) // ✅ FIX: Skip entries with missing coords
+        .map(p => ({
+            ...p,
+            distance: getDistanceFromLatLonInKm(lat, lon, p.lat, p.lon).toFixed(2),
+            rating: p.rating ?? (Math.random() * (4.9 - 3.8) + 3.8).toFixed(1)
+        }))
+        .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+}
+
+function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = deg2rad(lat2 - lat1);
+    const dLon = deg2rad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 +
+              Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+function deg2rad(deg) { return deg * (Math.PI / 180); }
+
+// ==========================================
+// 3. INTENT ANALYSIS
+// ✅ FIX: All branches now return a defined `key`
+// ==========================================
+async function analyzeIntent(userMessage) {
+    const lowerMsg = userMessage.toLowerCase();
+
+    if (/accident|sos|emergency|chest pain|unconscious|not breathing/.test(lowerMsg)) {
+        return { action: 'EMERGENCY', key: 'hospital', response: '🚨 **CRITICAL ALERT**: Call 108 immediately. Finding the nearest hospital...' };
+    }
+    if (lowerMsg.includes('hospital'))                           return { action: 'SEARCH', key: 'hospital' };
+    if (lowerMsg.includes('police'))                             return { action: 'SEARCH', key: 'police' };
+    if (lowerMsg.includes('pharmacy') || lowerMsg.includes('medicine')) return { action: 'SEARCH', key: 'pharmacy' };
+    if (lowerMsg.includes('atm') || lowerMsg.includes('bank'))  return { action: 'SEARCH', key: 'atm' };
+    if (lowerMsg.includes('rto') || lowerMsg.includes('license')) return { action: 'SEARCH', key: 'rto' };
+    if (lowerMsg.includes('metro'))                              return { action: 'SEARCH', key: 'metro' };
+    if (lowerMsg.includes('bus'))                                return { action: 'SEARCH', key: 'bus_station' };
+    if (lowerMsg.includes('toilet') || lowerMsg.includes('restroom')) return { action: 'SEARCH', key: 'toilet' };
+    if (lowerMsg.includes('ev') || lowerMsg.includes('charge')) return { action: 'SEARCH', key: 'ev' };
+    if (lowerMsg.includes('meeseva') || lowerMsg.includes('govt')) return { action: 'SEARCH', key: 'meeseva' };
+    if (lowerMsg.includes('blood'))                              return { action: 'SEARCH', key: 'blood' };
+
+    // ✅ FIX: Unknown queries now return a clear UNKNOWN action instead of a broken SEARCH
+    return { action: 'UNKNOWN', response: `I'm not sure how to help with "${userMessage}". Try asking for a hospital, pharmacy, police, ATM, bus, metro, or EV charger near you.` };
+}
+
+// ==========================================
+// 4. AUTH ROUTES
+// ==========================================
+
+app.post('/register', async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+        return res.status(400).json({ success: false, message: 'Name, email, and password are required.' });
+    }
+
+    const { data: existing } = await supabase.from('users').select('id').eq('email', email).maybeSingle();
+    if (existing) return res.json({ success: false, message: 'An account with this email already exists.' });
+
+    const { error } = await supabase.from('users').insert([{
+        name,
+        email,
+        password: hashPassword(password) // ✅ FIX: Store hashed password
+    }]);
+
+    if (error) return res.status(500).json({ success: false, message: error.message });
+    res.json({ success: true });
+});
+
+app.post('/login', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    }
+
+    const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', hashPassword(password)) // ✅ FIX: Compare against hashed password
+        .maybeSingle();
+
+    if (error) return res.status(500).json({ success: false, message: error.message });
+    if (data) return res.json({ success: true, user: { name: data.name } });
+    res.json({ success: false, message: 'Invalid email or password.' });
+});
+
+// ==========================================
+// 5. CHAT ROUTE
+// ==========================================
 app.post('/chat', async (req, res) => {
     try {
         const { message, location } = req.body;
-        console.log("📥 Received Message:", message); // Debug Log
+
+        if (!message || typeof message !== 'string') {
+            return res.status(400).json({ type: 'text', reply: '⚠️ Please send a valid message.' });
+        }
 
         const intent = await analyzeIntent(message);
 
-        if (intent.action === 'SEARCH' || intent.action === 'EMERGENCY') {
-            intent.params = intent.params || {};
-            intent.params.userLocation = location;
-            
-            const results = getRecommendations(intent.params);
-            
-            if (results.length === 0) return res.json({ type: 'text', reply: `I couldn't find "${message}" nearby.` });
-            
-            return res.json({ 
-                type: intent.action === 'EMERGENCY' ? 'emergency' : 'recommendation', 
-                reply: intent.response || `Found ${results.length} options for you.`, 
-                data: results.slice(0, 5) 
+        // ✅ FIX: Handle UNKNOWN intent cleanly
+        if (intent.action === 'UNKNOWN') {
+            return res.json({ type: 'text', reply: intent.response });
+        }
+
+        // SEARCH or EMERGENCY
+        if (!location || typeof location.lat !== 'number' || typeof location.lon !== 'number') {
+            return res.json({ type: 'text', reply: '⚠️ Location (GPS) is required to find nearby services. Please enable location access.' });
+        }
+
+        const results = await fetchNearbyPlaces(location.lat, location.lon, intent.key);
+
+        if (results.length === 0) {
+            return res.json({
+                type: 'text',
+                reply: `😔 No ${intent.key} found within 5km of your location. Try a broader search or check back later.`
             });
         }
-        res.json({ type: 'text', reply: intent.response });
+
+        return res.json({
+            type: intent.action === 'EMERGENCY' ? 'emergency' : 'recommendation',
+            reply: intent.response || `✅ Found ${results.length} ${intent.key}(s) near you.`,
+            data: results.slice(0, 5)
+        });
+
     } catch (error) {
-        res.status(500).json({ type: 'text', reply: "Server error." });
+        console.error('❌ /chat error:', error);
+        res.status(500).json({ type: 'text', reply: '⚠️ An internal server error occurred. Please try again.' });
     }
 });
 
